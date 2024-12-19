@@ -18,6 +18,7 @@ lang = args_.lang
 top_n = args_.top_n
 united = args_.united
 
+
 if __name__ == '__main__':
     assert filename, 'Вы забыли ввести название файла!'
 

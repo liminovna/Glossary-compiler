@@ -18,16 +18,16 @@ import time
 import functools
 
 
-def timer(func):
-    @functools.wraps(func)
-    def _timer(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        print(f"Execution time: {end - start:.4f} seconds")
-        return result
-
-    return _timer
+# def timer(func):
+#     @functools.wraps(func)
+#     def _timer(*args, **kwargs):
+#         start = time.perf_counter()
+#         result = func(*args, **kwargs)
+#         end = time.perf_counter()
+#         print(f"Execution time: {end - start:.4f} seconds")
+#         return result
+#
+#     return _timer
 
 def get_current_timestamp() -> str:
     """
@@ -60,8 +60,8 @@ class TextProcessorRU:
     Turns text into list of separate sentences, tokens and lemmas
     """
     import razdel
-    # import pymorphy2
-    # morph = pymorphy2.MorphAnalyzer()
+    import pymorphy3
+    morph = pymorphy3.MorphAnalyzer()
 
     # from nltk.tokenize import sent_tokenize, word_tokenize
     from nltk.stem import WordNetLemmatizer
@@ -93,14 +93,14 @@ class TextProcessorRU:
         return list(TextProcessorRU.razdel.tokenize(sent))
 
     @staticmethod
-    def lemmatize(words: list) -> list:
+    def lemmatize(word: str) -> str:
         """
         For each word in the list get its lemma
         :param words: list of words
         :return: list of lemmas
         """
-        return
-        # return [TextProcessorRU.morph.parse(w)[0].normal_form for w in words]
+        # return
+        return TextProcessorRU.morph.parse(word.text)[0].normal_form
 
 
 class TextProcessorEN:
@@ -193,7 +193,7 @@ class GlossaryCounter:
 
     @staticmethod
     def remove_punct(text) -> str:
-        return re.sub(f'[{punctuation.replace("'", '')}] + [“”]', '', text)
+        return re.sub(f'[{punctuation.replace("'", '') + '“”–‘’'}]', '', text)
 
     @staticmethod
     def _preprocess_(text) -> str:
@@ -239,7 +239,7 @@ class GlossaryCounter:
         """
 
         for sent_num, initial_sent in enumerate(self.processor.separate_sents(current_text)):
-            cleaned_sent = self.remove_punct(initial_sent)
+            cleaned_sent = self.remove_punct(initial_sent).lower()
             if cleaned_sent != '':
                 lemmas = [self.processor.lemmatize(t) for t in self.processor.tokenize(cleaned_sent)]
 
@@ -248,14 +248,14 @@ class GlossaryCounter:
 
                     left_w = lemmas[left_word_idx]
                     if left_w not in self.processor.STOP_WORDS:
+                        if len(left_w) > 1:
+                            self.contexts_uni[left_w].add(self.sent_index[initial_sent])
 
-                        self.contexts_uni[left_w].add(self.sent_index[initial_sent])
-
-                        self.feature_counter_uni.update([left_w])
+                            self.feature_counter_uni.update([left_w])
 
                         if right_word_idx < len(lemmas):
                             right_w = lemmas[right_word_idx]
-                            if right_w not in self.processor.STOP_WORDS:
+                            if right_w not in self.processor.STOP_WORDS and len(left_w+right_w) > 2:
                                 self.contexts_bi[(left_w, right_w)].add(self.sent_index[initial_sent])
 
                                 self.feature_counter_bi.update([(left_w, right_w)])
@@ -296,6 +296,7 @@ class GlossaryCompiler:
 
     @staticmethod
     def _iterate_file_(filename):
+
         """
         Read txt, pdf, epub, mobi, docx, or fb2 file using pymupdf
         """
@@ -316,7 +317,7 @@ class GlossaryCompiler:
         self.sent_index, self.feature_counter_uni, self.contexts_uni, self.feature_counter_bi, self.contexts_bi = GlossaryCounter(
             pages=pages, ngram_types=ngram_types, lang=self.lang).extract_text()
 
-    @timer
+    # @timer
     def get_top(self, top_n, united=False, min_threshold=0):
         """
         Get only n most frequent entries
@@ -367,3 +368,6 @@ class GlossaryCompiler:
         for suffix, table in zip(suffixes, self.output):
             table.to_csv(f'{suffix}_glossary_{get_current_timestamp()}.csv', index=False)
 
+
+# inst = GlossaryCompiler(filename='cl.pdf', lang='ru')
+# top_uni, top_bi = inst.get_top(top_n=10, united=False, min_threshold=0)
