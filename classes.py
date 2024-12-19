@@ -14,6 +14,20 @@ import nltk
 # nltk.download('punkt_tab')
 # nltk.download('wordnet')
 
+import time
+import functools
+
+
+def timer(func):
+    @functools.wraps(func)
+    def _timer(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        print(f"Execution time: {end - start:.4f} seconds")
+        return result
+
+    return _timer
 
 def get_current_timestamp() -> str:
     """
@@ -26,7 +40,8 @@ def get_current_timestamp() -> str:
 class InvalidExtension(Exception):
     def __init__(self, ext):
         self.message = (
-            f'Extension {ext} is not supported! Please make sure your file has the extension from the list below:\n{ALLOWED_EXTENSIONS}')
+            f'Extension {ext} is not supported! Please make sure your file has the extension from the list below:\n{ALLOWED_EXTENSIONS}'
+        )
 
     def __str__(self):
         return self.message
@@ -129,7 +144,6 @@ class TextProcessorEN:
         :param sent: sentence
         :return: list of words
         """
-        # добавить правило для ' !!!!
         return [t.text for t in TextProcessorEN.razdel.tokenize(sent)]
 
     @staticmethod
@@ -179,7 +193,7 @@ class GlossaryCounter:
 
     @staticmethod
     def remove_punct(text) -> str:
-        return re.sub(f'[{punctuation.replace("'", '')}]', '', text)
+        return re.sub(f'[{punctuation.replace("'", '')}] + [“”]', '', text)
 
     @staticmethod
     def _preprocess_(text) -> str:
@@ -259,7 +273,7 @@ class GlossaryCompiler:
         res = filename.split('.')[-1]
         if res in ALLOWED_EXTENSIONS:
             return res
-        raise InvalidExtension
+        raise InvalidExtension(res)
 
     @staticmethod
     def _check_language_(l: str):
@@ -297,11 +311,12 @@ class GlossaryCompiler:
         if self.extension in ('pdf', 'txt', 'epub', 'docx', 'fb2'):
             pages = self._iterate_file_(self.filename)
         else:
-            raise InvalidExtension('This extension is yet to be implemented')
+            raise InvalidExtension(self.extension)
 
         self.sent_index, self.feature_counter_uni, self.contexts_uni, self.feature_counter_bi, self.contexts_bi = GlossaryCounter(
             pages=pages, ngram_types=ngram_types, lang=self.lang).extract_text()
 
+    @timer
     def get_top(self, top_n, united=False, min_threshold=0):
         """
         Get only n most frequent entries
@@ -315,6 +330,7 @@ class GlossaryCompiler:
         if not united:
 
             top_uni = self._form_dataframe_(self.feature_counter_uni.most_common(top_n), self.contexts_uni, df_loc)
+            top_uni.drop(columns='sent_idx', inplace=True)
             top_bi = self._form_dataframe_(self.feature_counter_bi.most_common(top_n), self.contexts_bi, df_loc)
 
             top_bi[['left_word', 'right_word']] = top_bi['lemma'].apply(pd.Series)

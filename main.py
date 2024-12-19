@@ -11,16 +11,16 @@ parser.add_argument('-l', "--lang", help='Язык (ru или en)')
 parser.add_argument('-n', "--top_n", type=int, nargs='?', default=100, help='Вывести топ-n самых частотных слов/биграмм. По умолчанию 100')
 parser.add_argument('-u', "--united", action='store_true', help='По умолчанию составляется два отдельных списка с уни- и биграммами. Чтобы объединить два списка, укажите этот флаг.')
 
-args = parser.parse_args()
+args_ = parser.parse_args()
 
-filename = args.filename
-lang = args.lang
-top_n = args.top_n
-united = args.united
-
-# pip install pandas pymupdf nltk razdel pymorphy2 spacy
+filename = args_.filename
+lang = args_.lang
+top_n = args_.top_n
+united = args_.united
 
 if __name__ == '__main__':
+    assert filename, 'Вы забыли ввести название файла!'
+
     from classes import GlossaryCompiler
 
     inst = GlossaryCompiler(filename=filename, lang=lang)
